@@ -1,4 +1,3 @@
-// app/api/chat/route.ts
 import OpenAI from 'openai';
 import { STARTUP_ADVISOR_PROMPT } from '@/app/library/prompts/startup-advisor';
 
@@ -23,7 +22,7 @@ export async function POST(req: Request) {
   };
 
   try {
-    // 2. Call NVIDIA using the exact parameters from your snippet
+    // 2. Call NVIDIA using the exact parameters from your script
     const response = await openai.chat.completions.create({
       model: 'deepseek-ai/deepseek-r1',
       messages: [systemPrompt, ...messages],
@@ -38,19 +37,18 @@ export async function POST(req: Request) {
       async start(controller) {
         const encoder = new TextEncoder();
         try {
-          // This loop is the same as the `for await...` in your snippet
+          // This loop is the same as the `for await...` in your script
           for await (const chunk of response) {
-            // TypeScript 'as any' to access the special field
-            const delta = chunk.choices[0]?.delta as any;
-            const reasoning = delta?.reasoning_content;
-
+            const delta = chunk.choices[0].delta as any;
+            
             // This is the "Thinking" part
+            const reasoning = delta.reasoning_content;
             if (reasoning) {
               controller.enqueue(encoder.encode(`> 🧠 *Thinking:* ${reasoning}\n`));
             }
 
             // This is the main answer
-            const content = chunk.choices[0]?.delta?.content;
+            const content = delta.content;
             if (content) {
               controller.enqueue(encoder.encode(content));
             }
@@ -63,13 +61,9 @@ export async function POST(req: Request) {
       },
     });
 
-    // 4. Return the custom stream
+    // 4. Return the custom raw stream
     return new Response(stream, {
-      headers: {
-        'Content-Type': 'text/plain; charset=utf-8',
-        'X-Vercel-AI-SDK-Stream': '1', 
-        'X-AI-SDK-Data': '1' 
-      }
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' }
     });
 
   } catch (error) {

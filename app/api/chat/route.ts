@@ -44,7 +44,7 @@ export async function POST(req: Request) {
             // This is the "Thinking" part
             const reasoning = delta.reasoning_content;
             if (reasoning) {
-              controller.enqueue(encoder.encode(`> 🧠 *Thinking:* ${reasoning}\n`));
+              console.log("AI REASONING:", reasoning);
             }
 
             // This is the main answer

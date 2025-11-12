@@ -114,6 +114,10 @@ export default function ChatPage() {
               <Sparkles className="w-10 h-10 mx-auto text-blue-500 opacity-50" />
               <h2 className="text-2xl font-bold">Ready to build?</h2>
               <p className="text-slate-400">Tell me your business idea for a full analysis.</p>
+
+              <div className="max-w-md mx-auto mt-6 p-4 bg-amber-950/50 border border-amber-800/50 rounded-xl text-amber-300 text-sm">
+                🧠 <strong>Deep Analysis Mode:</strong> This expert uses our most powerful reasoning model. Please allow <strong>~1-3 minutes</strong> for it to generate its comprehensive response.
+              </div>
             </div>
           )}
 

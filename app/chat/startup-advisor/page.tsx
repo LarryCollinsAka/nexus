@@ -13,6 +13,10 @@ interface Message {
   content: string;
 }
 
+// API ENDPOINTS
+const CHAT_API_ENDPOINT = '/api/chat/startup-advisor';
+const HISTORY_API_ENDPOINT = '/api/chat/history/startup-advisor';
+
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');

@@ -3,7 +3,7 @@ import 'dotenv/config';
 
 export default defineConfig({
   schema: './lib/db.ts', // 
-  out: './drizzle/migrations',
+  out: './lib/migrations',
   dialect: 'postgresql',
   dbCredentials: {
     url: process.env.POSTGRES_URL!,

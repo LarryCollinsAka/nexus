@@ -3,7 +3,7 @@ import { auth } from '@/lib/auth';
 import { db, userTable, keyTable } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
-import { randomUUID } from 'crypto'; // Built-in Node.js module for unique IDs
+import { randomUUID } from 'crypto';
 
 export async function POST(req: Request) {
   try {
@@ -26,20 +26,21 @@ export async function POST(req: Request) {
     const userId = randomUUID();
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 3. Manually create the user and their key in a single transaction
-    await db.transaction(async (tx) => {
-      // Create the user
-      await tx.insert(userTable).values({
-        id: userId,
-        email: email.toLowerCase(),
-        createdAt: new Date(),
-      });
-      // Create their login key (the password)
-      await tx.insert(keyTable).values({
-        id: `email:${email.toLowerCase()}`, // The providerId for email/password
-        userId: userId,
-        hashedPassword: hashedPassword,
-      });
+    // 3. Manually create the user and their key
+    // removed the db.transaction() wrapper, which is not supported by neon-http
+    
+    // Create the user
+    await db.insert(userTable).values({
+      id: userId,
+      email: email.toLowerCase(),
+      createdAt: new Date(),
+    });
+    
+    // Create Password
+    await db.insert(keyTable).values({
+      id: `email:${email.toLowerCase()}`,
+      userId: userId,
+      hashedPassword: hashedPassword,
     });
     
     // 4. Create a session for the new user
@@ -56,7 +57,7 @@ export async function POST(req: Request) {
     });
 
   } catch (error: any) {
-    // Check for unique constraint error (just in case)
+    // Check for unique constraint error
     if (error.code === '23505') {
       return NextResponse.json({ error: 'Email already in use' }, { status: 409 });
     }

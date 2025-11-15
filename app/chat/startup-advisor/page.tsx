@@ -30,7 +30,7 @@ export default function ChatPage() {
   useEffect(() => {
     const fetchHistory = async () => {
       try {
-        const res = await fetch('/api/chat/history');
+        const res = await fetch(HISTORY_API_ENDPOINT);
         if (!res.ok) {
           // If unauthorized (401), this will fail
           throw new Error('Failed to fetch history. Redirecting to login.');
@@ -76,7 +76,7 @@ export default function ChatPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/chat', {
+      const response = await fetch(CHAT_API_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         // Send the full message list for context

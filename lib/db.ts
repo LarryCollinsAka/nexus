@@ -49,14 +49,14 @@ let dbInstance;
 
 if (process.env.NODE_ENV === 'production') {
   console.log("Using Neon serverless driver for production");
-  const sql = neon(process.env.POSTGRES_URL_NON_POOLING!);
+  const sql = neon(process.env.POSTGRES_URL!);
   dbInstance = drizzleNeon(sql, { 
     schema: { userTable, sessionTable, keyTable, chatTable, messageTable } // Added keyTable
   });
 } else {
   console.log("Using 'pg' driver for local development");
   const pool = new Pool({
-    connectionString: process.env.POSTGRES_URL_NON_POOLING!,
+    connectionString: process.env.POSTGRES_URL!,
   });
   dbInstance = drizzlePg(pool, { 
     schema: { userTable, sessionTable, keyTable, chatTable, messageTable } // Added keyTable

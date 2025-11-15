@@ -2,9 +2,23 @@
 
 import { LogOut, Bot, DollarSign, SearchCheck, Languages, ArrowRight, Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import React from 'react'; 
 
-// This is a small helper component for the cards
-const ExpertCard = ({ icon, title, description, href, colorClass, tag }) => (
+const ExpertCard = ({ 
+  icon, 
+  title, 
+  description, 
+  href, 
+  colorClass, 
+  tag 
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  href: string;
+  colorClass: string;
+  tag: string;
+}) => (
   <a
     href={href}
     className="relative flex flex-col justify-between rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl transition-all hover:-translate-y-1 hover:shadow-blue-900/50"
@@ -50,6 +64,7 @@ const ExpertCard = ({ icon, title, description, href, colorClass, tag }) => (
     `}</style>
   </a>
 );
+// --- END FIX ---
 
 export default function ChatDashboard() {
   const router = useRouter();
@@ -116,7 +131,7 @@ export default function ChatDashboard() {
               href="/chat/translation-expert"
               tag="Specialized"
               colorClass="text-cyan-400 border-cyan-400-30 bg-cyan-400-10 bg-cyan-400-20 text-cyan-100"
-      icon={<Languages className="h-6 w-6 text-cyan-400" />}
+              icon={<Languages className="h-6 w-6 text-cyan-400" />}
             />
           </div>
         </div>

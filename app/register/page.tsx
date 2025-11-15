@@ -27,7 +27,7 @@ export default function RegisterPage() {
 
       if (res.ok) {
         // Registration successful, send  to the chat page
-        router.push('/chat');
+        router.push('/');
       } else {
         // Handle errors (e.g., "Email already in use")
         const data = await res.json();

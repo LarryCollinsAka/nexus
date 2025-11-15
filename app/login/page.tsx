@@ -27,7 +27,7 @@ export default function LoginPage() {
 
       if (res.ok) {
         // Login successful, send to the chat page
-        router.push('/chat');
+        router.push('/');
       } else {
         // Handle errors (e.g., "Incorrect email or password")
         const data = await res.json();

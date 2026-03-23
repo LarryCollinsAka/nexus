@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { STARTUP_ADVISOR_PROMPT } from '@/app/library/prompts/revenue-reactor'; 
+import { STARTUP_ADVISOR_PROMPT } from '@/app/library/prompts/startup-advisor'; 
 import { auth } from '@/lib/auth';
 import { db, chatTable, messageTable } from '@/lib/db';
 import { eq, and } from 'drizzle-orm';

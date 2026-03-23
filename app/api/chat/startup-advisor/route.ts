@@ -1,116 +1,107 @@
-import OpenAI from "openai";
-import { STARTUP_ADVISOR_PROMPT } from "@/app/library/prompts/startup-advisor";
-import { auth } from "@/lib/auth";
-import { db, chatTable, messageTable } from "@/lib/db";
-import { eq, and } from "drizzle-orm";
-import { cookies } from "next/headers";
+import OpenAI from 'openai';
+import { STARTUP_ADVISOR_PROMPT } from '@/app/library/prompts/revenue-reactor';
+import { auth } from '@/lib/auth';
+import { db, chatTable, messageTable } from '@/lib/db';
+import { eq, and } from 'drizzle-orm';
+import { cookies } from 'next/headers';
 
 const openai = new OpenAI({
   apiKey: process.env.NVIDIA_API_KEY,
-  baseURL: "https://integrate.api.nvidia.com/v1",
+  baseURL: 'https://integrate.api.nvidia.com/v1',
 });
 
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic';
+const MODEL_NAME = 'revenue-reactor'; // Define the model name
 
 export async function POST(req: Request) {
   try {
-    // 1. Get user session
+    // 2. Auth (same as before)
     const sessionId = (await cookies()).get(auth.sessionCookieName)?.value ?? null;
-    if (!sessionId) return new Response("Unauthorized", { status: 401 });
+    if (!sessionId) return new Response('Unauthorized', { status: 401 });
     const { session } = await auth.validateSession(sessionId);
-    if (!session) return new Response("Unauthorized", { status: 401 });
+    if (!session) return new Response('Unauthorized', { status: 401 });
     const userId = session.userId;
 
-    // 2. Get messages and find chat
     const { messages: currentMessages } = await req.json();
-    if (!currentMessages || currentMessages.length === 0) {
-      return new Response("No messages provided", { status: 400 });
-    }
 
+    // 3. Find or create a chat (now specific to this model)
     let chat = await db.query.chatTable.findFirst({
-      where: and(eq(chatTable.userId, userId), eq(chatTable.modelName, "startup-advisor")),
+      where: and(
+        eq(chatTable.userId, userId),
+        eq(chatTable.modelName, MODEL_NAME) // Use the new model name
+      )
     });
-
     if (!chat) {
-      chat = (
-        await db
-          .insert(chatTable)
-          .values({ userId: userId, modelName: "startup-advisor" })
-          .returning()
-      )[0];
+      chat = (await db.insert(chatTable).values({
+        userId: userId,
+        modelName: MODEL_NAME, // Save with the new model name
+      }).returning())[0];
     }
     const chatId = chat.id;
 
-    // 3. Save the new user message
+    // 4. Save user message (same as before)
     const userMessage = currentMessages[currentMessages.length - 1];
-    if (!userMessage?.content || userMessage.content.trim() === "") {
-      return new Response("Empty user message", { status: 400 });
-    }
-
     await db.insert(messageTable).values({
       chatId: chatId,
-      role: "user",
+      role: 'user',
       content: userMessage.content,
     });
 
-    const systemPrompt = { role: "system", content: STARTUP_ADVISOR_PROMPT };
+    // 5. Use the new prompt
+    const systemPrompt = { role: 'system', content: STARTUP_ADVISOR_PROMPT };
 
-    // 4. Call NVIDIA API
+    // 6. Call NVIDIA with the FAST model (Llama 3.1)
     const response = await openai.chat.completions.create({
-      model: "meta/llama-3.1-70b-instruct",
+      model: 'meta/llama-3.1-70b-instruct', // The fast model
       messages: [systemPrompt, ...currentMessages],
       stream: true,
-      temperature: 0.6,
-      top_p: 0.7,
+      temperature: 0.7, // A bit more creative
+      top_p: 1.0,
       max_tokens: 4096,
     });
 
     let fullReply = "";
 
-    // 5. Create the stream
+    // 7. Create the stream (This model does NOT have 'reasoning_content')
     const stream = new ReadableStream({
       async start(controller) {
         const encoder = new TextEncoder();
         try {
           for await (const chunk of response) {
-            const delta = chunk.choices?.[0]?.delta as any;
-
-            const reasoning = delta?.reasoning_content;
-            if (reasoning) {
-              console.log("AI REASONING:", reasoning);
-              controller.enqueue(encoder.encode("> 🧠 Thinking...\n"));
-            }
-
-            const content = delta?.content;
+            const delta = chunk.choices[0].delta as any;
+            
+            // Llama 3.1 only has 'content'
+            const content = delta.content;
             if (content) {
               fullReply += content;
               controller.enqueue(encoder.encode(content));
             }
           }
 
-          // Save assistant reply to DB
+          // 8. Save the full reply to the DB
           await db.insert(messageTable).values({
             chatId: chatId,
-            role: "assistant",
+            role: 'assistant',
             content: fullReply,
           });
+
         } catch (e) {
-          console.error("Stream error:", e);
+          console.error('Stream error:', e);
           controller.error(e);
-        } finally {
-          controller.close();
         }
+        controller.close();
       },
     });
-
+    
     return new Response(stream, {
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' }
     });
+
   } catch (error) {
-    console.error("Error:", error);
-    return new Response(JSON.stringify({ error: "AI connection failed" }), {
+    console.error('Error:', error);
+    return new Response(JSON.stringify({ error: 'AI connection failed' }), { 
       status: 500,
-      headers: { "Content-Type": "application/json" },
+      headers: { 'Content-Type': 'application/json' }
     });
   }
 }

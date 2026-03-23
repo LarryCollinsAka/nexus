@@ -49,7 +49,7 @@ export async function POST(req: Request) {
 
     // 4. Call NVIDIA
     const response = await openai.chat.completions.create({
-      model: 'deepseek-ai/deepseek-r1',
+      model: 'deepseek-ai/deepseek-v3.1',
       messages: [systemPrompt, ...currentMessages],
       stream: true,
       temperature: 0.6,

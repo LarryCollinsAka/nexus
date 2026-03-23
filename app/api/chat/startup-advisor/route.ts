@@ -1,55 +1,63 @@
-import OpenAI from 'openai';
-import { STARTUP_ADVISOR_PROMPT } from '@/app/library/prompts/startup-advisor';
-import { auth } from '@/lib/auth';
-import { db, chatTable, messageTable } from '@/lib/db';
-import { eq, and } from 'drizzle-orm';
-import { cookies } from 'next/headers';
+import OpenAI from "openai";
+import { STARTUP_ADVISOR_PROMPT } from "@/app/library/prompts/startup-advisor";
+import { auth } from "@/lib/auth";
+import { db, chatTable, messageTable } from "@/lib/db";
+import { eq, and } from "drizzle-orm";
+import { cookies } from "next/headers";
 
 const openai = new OpenAI({
   apiKey: process.env.NVIDIA_API_KEY,
-  baseURL: 'https://integrate.api.nvidia.com/v1',
+  baseURL: "https://integrate.api.nvidia.com/v1",
 });
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   try {
     // 1. Get user session
     const sessionId = (await cookies()).get(auth.sessionCookieName)?.value ?? null;
-    if (!sessionId) return new Response('Unauthorized', { status: 401 });
+    if (!sessionId) return new Response("Unauthorized", { status: 401 });
     const { session } = await auth.validateSession(sessionId);
-    if (!session) return new Response('Unauthorized', { status: 401 });
+    if (!session) return new Response("Unauthorized", { status: 401 });
     const userId = session.userId;
 
     // 2. Get messages and find chat
     const { messages: currentMessages } = await req.json();
+    if (!currentMessages || currentMessages.length === 0) {
+      return new Response("No messages provided", { status: 400 });
+    }
+
     let chat = await db.query.chatTable.findFirst({
-      where: and(
-        eq(chatTable.userId, userId),
-        eq(chatTable.modelName, 'startup-advisor')
-      )
+      where: and(eq(chatTable.userId, userId), eq(chatTable.modelName, "startup-advisor")),
     });
+
     if (!chat) {
-      chat = (await db.insert(chatTable).values({
-        userId: userId,
-        modelName: 'startup-advisor',
-      }).returning())[0];
+      chat = (
+        await db
+          .insert(chatTable)
+          .values({ userId: userId, modelName: "startup-advisor" })
+          .returning()
+      )[0];
     }
     const chatId = chat.id;
 
     // 3. Save the new user message
     const userMessage = currentMessages[currentMessages.length - 1];
+    if (!userMessage?.content || userMessage.content.trim() === "") {
+      return new Response("Empty user message", { status: 400 });
+    }
+
     await db.insert(messageTable).values({
       chatId: chatId,
-      role: 'user',
+      role: "user",
       content: userMessage.content,
     });
 
-    const systemPrompt = { role: 'system', content: STARTUP_ADVISOR_PROMPT };
+    const systemPrompt = { role: "system", content: STARTUP_ADVISOR_PROMPT };
 
-    // 4. Call NVIDIA
+    // 4. Call NVIDIA API
     const response = await openai.chat.completions.create({
-      model: 'deepseek-ai/deepseek-v3.1',
+      model: "deepseek-ai/deepseek-v3.1",
       messages: [systemPrompt, ...currentMessages],
       stream: true,
       temperature: 0.6,
@@ -57,7 +65,7 @@ export async function POST(req: Request) {
       max_tokens: 4096,
     });
 
-    let fullReply = ""; 
+    let fullReply = "";
 
     // 5. Create the stream
     const stream = new ReadableStream({
@@ -65,45 +73,44 @@ export async function POST(req: Request) {
         const encoder = new TextEncoder();
         try {
           for await (const chunk of response) {
-            const delta = chunk.choices[0].delta as any;
-            
-            const reasoning = delta.reasoning_content;
+            const delta = chunk.choices?.[0]?.delta as any;
+
+            const reasoning = delta?.reasoning_content;
             if (reasoning) {
               console.log("AI REASONING:", reasoning);
-              controller.enqueue(encoder.encode(`> 🧠 *Thinking...*\n`));
+              controller.enqueue(encoder.encode("> 🧠 Thinking...\n"));
             }
 
-            const content = delta.content;
+            const content = delta?.content;
             if (content) {
-              fullReply += content; // Add to the full reply
+              fullReply += content;
               controller.enqueue(encoder.encode(content));
             }
           }
 
-          // After the loop is done, we save the full reply to the DB
+          // Save assistant reply to DB
           await db.insert(messageTable).values({
             chatId: chatId,
-            role: 'assistant',
+            role: "assistant",
             content: fullReply,
           });
-
         } catch (e) {
-          console.error('Stream error:', e);
+          console.error("Stream error:", e);
           controller.error(e);
+        } finally {
+          controller.close();
         }
-        controller.close();
       },
     });
-    
-    return new Response(stream, {
-      headers: { 'Content-Type': 'text/plain; charset=utf-8' }
-    });
 
+    return new Response(stream, {
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
   } catch (error) {
-    console.error('Error:', error);
-    return new Response(JSON.stringify({ error: 'AI connection failed' }), { 
+    console.error("Error:", error);
+    return new Response(JSON.stringify({ error: "AI connection failed" }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { "Content-Type": "application/json" },
     });
   }
 }
